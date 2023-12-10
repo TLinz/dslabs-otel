@@ -1,0 +1,44 @@
+receivers:
+  otlp: # the OTLP receiver the app is sending traces to
+    protocols:
+      grpc:
+        endpoint: otel-collector:4317
+      http:
+        endpoint: otel-collector:4318
+
+processors:
+  batch:
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100
+    expected_new_traces_per_sec: 10
+    policies:
+      [
+        {
+          name: errors-policy,
+          type: status_code,
+          status_code: { status_codes: [ERROR] },
+        },
+        {
+          name: randomized-policy,
+          type: probabilistic,
+          probabilistic: { sampling_percentage: 100 },
+        },
+      ]
+
+exporters:
+  jaeger:
+    endpoint: jaeger-all-in-one:14250
+    tls:
+      insecure: true
+
+extensions:
+  health_check:
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces/dev:
+      receivers: [otlp]
+      processors: [tail_sampling]
+      exporters: [jaeger]
